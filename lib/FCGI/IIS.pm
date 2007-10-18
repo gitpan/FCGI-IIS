@@ -2,10 +2,10 @@ package FCGI::IIS;
 
 use 5.005;
 use strict;
-use warnings;
+#use warnings;
 use FCGI;
-use vars qw($VERSION);
-$VERSION = '0.01';
+use vars qw($VERSION $count);
+$VERSION = '0.03';
 
 sub import {
     my $pkg = shift;
@@ -15,11 +15,12 @@ sub import {
 
 sub _worker {
     my $runmode = shift;
+    $runmode = "do" unless ($runmode);
     my $request = FCGI::Request();
 
     while($request->Accept() >= 0) {
         if ($runmode eq "test") {
-            print("Content-type: text/html\r\n\r\n", ++$count, "-$runmode-");
+            print("Content-type: text/html\r\n\r\n", ++$count, "<br>\nMode:$runmode<br>\nScript: $ENV{'SCRIPT_FILENAME'}");
             next;
         }#if
         if ($runmode eq "carp") {
@@ -27,19 +28,21 @@ sub _worker {
             CGI::Carp->import("fatalsToBrowser");
         }#if
         if ($runmode eq "eval") {
-            open(INF, "$ENV{'SCRIPT_FILENAME'}");
-                undef $/;
-                my $scriptcode = <INF>;
-            close(INF);
-            $/ = "\n";
-            package main;
-            eval $scriptcode;
-            print "Error! $@" if $@;
-            package FCGI::IIS;
+            if ($ENV{'SCRIPT_FILENAME'}) {
+                open(INF, "$ENV{'SCRIPT_FILENAME'}");
+                    undef $/;
+                    my $scriptcode = <INF>;
+                close(INF);
+                $/ = "\n";
+                package main;
+                eval $scriptcode;
+                print ("Content-type: text/html\r\n\r\n", "Error! $@") if $@;
+                package FCGI::IIS;
+            }#if
             next;
         }#if
         package main;
-        do ($ENV{'SCRIPT_FILENAME'});
+        do ($ENV{'SCRIPT_FILENAME'}) if ($ENV{'SCRIPT_FILENAME'});
         package FCGI::IIS;
     }#while
 }#sub
@@ -68,6 +71,11 @@ SYNOPSIS
   Allowing you to easily run your perl scripts as FastCGI. Module usage is described below. 
   If you would details of how to implement this with your IIS visit 
   http://www.cosmicscripts.com/servers/fastcgi.html#iis
+  ActivePerl ppm is available from:-
+  http://www.cosmicscripts.com/modules
+  from a windows command prompt type:-
+  "ppm install http://www.cosmicscripts.com/modules/perl/FCGI-IIS.ppd"
+
 
 =head1 DESCRIPTION
 
