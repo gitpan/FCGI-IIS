@@ -5,7 +5,7 @@ use strict;
 #use warnings;
 use FCGI;
 use vars qw($VERSION $count);
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub import {
     my $pkg = shift;
@@ -79,28 +79,28 @@ SYNOPSIS
 
 =head1 DESCRIPTION
 
-  The module has 4 different modes it can be run in.
+The module has 4 different modes it can be run in.
 
 =over
 
 =item perl -MFCGI::IIS=test
 
-  This is a simple test routine, that displays a counter that increments by 1 each time 
-  the script is called as a FastCGI.
+This is a simple test routine, that displays a counter that increments by 1 each time 
+the script is called as a FastCGI.
 
 =item perl -MFCGI::IIS=carp
 
-  In this mode, CGI::Carp qw(fatalsToBrowser) is invoked before running the do method.
+In this mode, CGI::Carp qw(fatalsToBrowser) is invoked before running the do method.
 
 =item perl -MFCGI::IIS=eval
 
-  With this mode eval is used instead of the do operator. Slower run time, but allows 
-  you to trap errors.
+With this mode eval is used instead of the do operator. Slower run time, but allows 
+you to trap errors.
 
 =item perl -MFCGI::IIS=do
 
-  This is the default mode, and will be called if no arguments are given, i.e. 
-  perl -MFCGI::IIS. The calling script is loaded into the FastCGI using the do operator.
+This is the default mode, and will be called if no arguments are given, i.e. 
+perl -MFCGI::IIS. The calling script is loaded into the FastCGI using the do operator.
 
 =back
 
