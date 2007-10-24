@@ -2,10 +2,11 @@ package FCGI::IIS;
 
 use 5.005;
 use strict;
-#use warnings;
+use warnings;
 use FCGI;
-use vars qw($VERSION $count);
-$VERSION = '0.04';
+use Symbol qw( qualify_to_ref delete_package );
+use vars qw($VERSION $count $SYMKEEP $variable);
+$VERSION = '0.05';
 
 sub import {
     my $pkg = shift;
@@ -19,6 +20,7 @@ sub _worker {
     my $request = FCGI::Request();
 
     while($request->Accept() >= 0) {
+        $SYMKEEP = &_get_symtable() unless $SYMKEEP;
         if ($runmode eq "test") {
             print("Content-type: text/html\r\n\r\n", ++$count, "<br>\nMode:$runmode<br>\nScript: $ENV{'SCRIPT_FILENAME'}");
             next;
@@ -28,23 +30,69 @@ sub _worker {
             CGI::Carp->import("fatalsToBrowser");
         }#if
         if ($runmode eq "eval") {
-            if ($ENV{'SCRIPT_FILENAME'}) {
-                open(INF, "$ENV{'SCRIPT_FILENAME'}");
-                    undef $/;
-                    my $scriptcode = <INF>;
-                close(INF);
-                $/ = "\n";
-                package main;
-                eval $scriptcode;
-                print ("Content-type: text/html\r\n\r\n", "Error! $@") if $@;
-                package FCGI::IIS;
-            }#if
-            next;
+            do{
+                no strict;
+                no warnings;
+                if ($ENV{'SCRIPT_FILENAME'}) {
+                    open(INF, "$ENV{'SCRIPT_FILENAME'}");
+                        undef $/;
+                        my $scriptcode = <INF>;
+                    close(INF);
+                    $/ = "\n";
+                    package main;
+                    eval $scriptcode;
+                    print ("Content-type: text/html\r\n\r\n", "Error! $@") if $@;
+                    package FCGI::IIS;
+                }#if
+                next;
+            }#do
+        }#if
+        if ($runmode eq "evalhead") {
+            do{
+                print "Content-type: text/html\r\n\r\n";
+                no strict;
+                no warnings;
+                if ($ENV{'SCRIPT_FILENAME'}) {
+                    open(INF, "$ENV{'SCRIPT_FILENAME'}");
+                        undef $/;
+                        my $scriptcode = <INF>;
+                    close(INF);
+                    $/ = "\n";
+                    package main;
+                    eval $scriptcode;
+                    print ("Content-type: text/html\r\n\r\n", "Error! $@") if $@;
+                    package FCGI::IIS;
+                }#if
+                next;
+            }#do
         }#if
         package main;
         do ($ENV{'SCRIPT_FILENAME'}) if ($ENV{'SCRIPT_FILENAME'});
-        package FCGI::IIS;
+        package FCGI::IIS;        
+        &_remove_symtable();
     }#while
+}#sub
+
+sub _get_symtable {
+    my $class = "main";
+    return {
+        map  { @$_ }                                        # key => value
+        map  { [$_, qualify_to_ref( $_, $class )] }         # get globref
+        do   { no strict 'refs'; keys %{ "${class}::" } }   # symbol entries
+    };
+}#sub
+
+sub _remove_symtable {
+    my $symremove = &_get_symtable();
+    for my $f (keys %$symremove) {
+        next if     $SYMKEEP->{ $f };
+    if ($f =~ /(::)$/) {
+      delete_package("main\::$f");
+    }#if
+    else {
+          do{ no strict 'refs'; undef *{ 'main::' .$f }; delete ${ 'main::' }{$f}};
+        }#else
+    }#for
 }#sub
 
 
@@ -63,6 +111,7 @@ SYNOPSIS
   perl -MFCGI::IIS=test
   perl -MFCGI::IIS=carp
   perl -MFCGI::IIS=eval
+  perl -MFCGI::IIS=evalhead
   perl -MFCGI::IIS=do
 
 =head1 ABSTRACT
@@ -79,7 +128,7 @@ SYNOPSIS
 
 =head1 DESCRIPTION
 
-The module has 4 different modes it can be run in.
+The module has 5 different modes it can be run in.
 
 =over
 
@@ -96,6 +145,11 @@ In this mode, CGI::Carp qw(fatalsToBrowser) is invoked before running the do met
 
 With this mode eval is used instead of the do operator. Slower run time, but allows 
 you to trap errors.
+
+=item perl -MFCGI::IIS=evalhead
+
+With this mode eval is used instead of the do operator, also the content-type 
+text/html header is returned first. Allowing you to trap wrong header errors.
 
 =item perl -MFCGI::IIS=do
 

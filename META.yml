@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                FCGI-IIS
-version:             0.04
+version:             0.05
 abstract:            FCGI wrapper for MS IIS FastCGI
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.3201
